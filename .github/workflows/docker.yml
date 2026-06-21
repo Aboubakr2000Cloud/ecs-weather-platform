@@ -1,25 +1,59 @@
-name: Build, Push & Deploy
+name: Production CI/CD (Terraform + ECS + ECR)
 
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 env:
   AWS_REGION: eu-west-1
+  TF_DIR: ./terraform
   ECR_REPOSITORY: weather-app
-  ECS_CLUSTER: cloudpath-dev-cluster
+  ECS_CLUSTER: ecs-weather-platform-dev-cluster
   ECS_SERVICE: weather-app
   CONTAINER_NAME: weather-app
 
 jobs:
-  build-and-push:
-    name: Build & Push to ECR
+
+# -------------------------
+# 1. TERRAFORM (INFRA SAFE APPLY)
+# -------------------------
+  terraform:
+    name: Terraform Apply
     runs-on: ubuntu-latest
 
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform init -backend-config=backends/dev.hcl
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_DIR }}
+        run: terraform apply -auto-approve
+
+
+# -------------------------
+# 2. BUILD & PUSH IMAGE
+# -------------------------
+  build:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    needs: terraform
+
     outputs:
-      image: ${{ steps.build.outputs.image }}
+      image: ${{ steps.image.outputs.image }}
 
     steps:
       - name: Checkout
@@ -33,27 +67,27 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to ECR
-        id: login-ecr
+        id: login
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, tag, and push image
-        id: build
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+      - name: Build, tag, push
+        id: image
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-                     $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          IMAGE_URI=${{ steps.login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
 
+          docker build -t $IMAGE_URI .
+          docker push $IMAGE_URI
+
+          echo "image=$IMAGE_URI" >> $GITHUB_OUTPUT
+
+
+# -------------------------
+# 3. DEPLOY (FORCE ECS REFRESH)
+# -------------------------
   deploy:
     name: Deploy to ECS
     runs-on: ubuntu-latest
-    needs: build-and-push
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: build
 
     steps:
       - name: Configure AWS credentials
@@ -63,25 +97,9 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Download current task definition
+      - name: Force ECS new deployment
         run: |
-          aws ecs describe-task-definition \
-            --task-definition ${{ env.ECS_SERVICE }} \
-            --query taskDefinition \
-            > task-definition.json
-
-      - name: Update image in task definition
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: task-definition.json
-          container-name: ${{ env.CONTAINER_NAME }}
-          image: ${{ needs.build-and-push.outputs.image }}
-
-      - name: Deploy to ECS
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --force-new-deployment
