@@ -3,6 +3,9 @@ name: Production CI/CD (Terraform + ECS + ECR)
 on:
   push:
     branches: [main]
+    paths:
+      - 'app/**'
+      - 'Dockerfile'
 
 env:
   AWS_REGION: eu-west-1
