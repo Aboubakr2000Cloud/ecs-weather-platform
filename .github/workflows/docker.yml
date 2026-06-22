@@ -81,6 +81,9 @@ jobs:
           docker build -t $IMAGE_URI .
           docker push $IMAGE_URI
 
+          docker tag $IMAGE_URI ${{ steps.login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+          docker push ${{ steps.login.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+
           echo "image=$IMAGE_URI" >> $GITHUB_OUTPUT
 
 
