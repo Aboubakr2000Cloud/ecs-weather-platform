@@ -1,7 +1,7 @@
 name: Production CI/CD (Terraform + ECS + ECR)
 
 on:
-  push:
+  pull_request:
     branches: [main]
     paths:
       - 'app/**'
@@ -21,7 +21,7 @@ jobs:
 # 1. TERRAFORM (INFRA SAFE APPLY)
 # -------------------------
   terraform:
-    name: Terraform Apply
+    name: Terraform Plan
     runs-on: ubuntu-latest
 
     steps:
@@ -42,18 +42,19 @@ jobs:
         working-directory: ${{ env.TF_DIR }}
         run: terraform init -backend-config=backends/dev.hcl
 
-      - name: Terraform Apply
+      - name: Terraform Plan
         working-directory: ${{ env.TF_DIR }}
         env:
           TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
           TF_VAR_weather_api_key: ${{ secrets.WEATHER_API_KEY }}
-        run: terraform apply -auto-approve -var-file=envs/dev.tfvars
+        run: terraform plan -var-file=envs/dev.tfvars
 
 
 # -------------------------
 # 2. BUILD & PUSH IMAGE
 # -------------------------
   build:
+    if: false
     name: Build & Push Image
     runs-on: ubuntu-latest
     needs: terraform
@@ -94,6 +95,7 @@ jobs:
 # 3. DEPLOY (FORCE ECS REFRESH)
 # -------------------------
   deploy:
+    if: false
     name: Deploy to ECS
     runs-on: ubuntu-latest
     needs: build
