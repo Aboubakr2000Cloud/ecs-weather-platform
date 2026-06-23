@@ -1,0 +1,14 @@
+name: Build and Push Reusable
+
+on:
+  workflow_call:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show branch
+        run: echo "Building from ${{ github.ref_name }}"
