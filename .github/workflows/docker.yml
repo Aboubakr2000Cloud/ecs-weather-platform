@@ -64,6 +64,9 @@ jobs:
         run: terraform plan -var-file=envs/dev.tfvars
 
 
+  build-reusable:
+    uses: ./.github/workflows/build-and-push.yml
+
 # -------------------------
 # 2. BUILD & PUSH IMAGE
 # -------------------------
