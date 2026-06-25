@@ -64,6 +64,14 @@ jobs:
         run: terraform plan -var-file=envs/dev.tfvars
 
 
+  deploy-prod:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Waiting for approval
+        run: echo "Production deployment approved!"
+
 # -------------------------
 # 2. BUILD & PUSH IMAGE
 # -------------------------
