@@ -95,7 +95,14 @@ jobs:
 
       - run: pip install -r requirements.txt
       - run: pip install pytest
-
+      
+      - name: Debug Python path
+        run: |
+          pwd
+          ls -R
+          python -c "import sys; print(sys.path)"
+          python -c "import app; print(app)"
+      
       - name: Run integration tests
         env:
           DB_HOST: 127.0.0.1
