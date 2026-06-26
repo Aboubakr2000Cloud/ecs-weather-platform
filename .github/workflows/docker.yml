@@ -110,7 +110,7 @@ jobs:
           DB_NAME: weatherdb
           WEATHER_API_KEY: dummy
 
-        run: pytest tests/integration -v
+        run: python -m pytest tests/integration -v
 
 # -------------------------
 # 2. BUILD & PUSH IMAGE
