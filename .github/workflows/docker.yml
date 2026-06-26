@@ -64,6 +64,49 @@ jobs:
         run: terraform plan -var-file=envs/dev.tfvars
 
 
+  integration-tests:
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+          MYSQL_DATABASE: weatherdb
+          MYSQL_USER: weatheruser
+          MYSQL_PASSWORD: weatherpass
+
+        ports:
+          - 3306:3306
+
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r requirements.txt
+      - run: pip install pytest
+
+      - name: Run integration tests
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: weatheruser
+          DB_PASSWORD: weatherpass
+          DB_NAME: weatherdb
+          WEATHER_API_KEY: dummy
+
+        run: pytest tests/integration -v
+
 # -------------------------
 # 2. BUILD & PUSH IMAGE
 # -------------------------
