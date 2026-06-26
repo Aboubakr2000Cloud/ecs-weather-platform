@@ -97,16 +97,17 @@ jobs:
       
       - run: pip install pytest
       
-      - name: Debug app import
+      - name: Initialize database
         run: |
-          python -c "from app.app import app; print('SUCCESS')"
-      
-      - name: Debug before pytest
-        run: |
-          python -c "import sys; print(sys.executable)"
-          python -c "import sys; print(sys.path)"
-          python -c "import app; print(app.__file__)"
-          python -m pytest --version
+          sudo apt-get update
+          sudo apt-get install -y mysql-client
+
+          mysql \
+            -h 127.0.0.1 \
+            -u weatheruser \
+            -pweatherpass \
+            weatherdb \
+            < migrations/001_init.sql
       
       - name: Run integration tests
         env:
