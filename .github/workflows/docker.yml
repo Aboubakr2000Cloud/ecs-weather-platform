@@ -94,14 +94,12 @@ jobs:
           python-version: "3.11"
 
       - run: pip install -r requirements.txt
+      
       - run: pip install pytest
       
-      - name: Debug Python path
+      - name: Debug app import
         run: |
-          pwd
-          ls -R
-          python -c "import sys; print(sys.path)"
-          python -c "import app; print(app)"
+          python -c "from app.app import app; print('SUCCESS')"
       
       - name: Run integration tests
         env:
