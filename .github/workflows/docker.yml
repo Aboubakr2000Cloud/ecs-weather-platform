@@ -101,6 +101,13 @@ jobs:
         run: |
           python -c "from app.app import app; print('SUCCESS')"
       
+      - name: Debug before pytest
+        run: |
+          python -c "import sys; print(sys.executable)"
+          python -c "import sys; print(sys.path)"
+          python -c "import app; print(app.__file__)"
+          python -m pytest --version
+      
       - name: Run integration tests
         env:
           DB_HOST: 127.0.0.1
